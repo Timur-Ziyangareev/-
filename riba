@@ -1,0 +1,130 @@
+--Для MainWindow.xaml 
+<Window x:Class="ZV.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Seafood Transportation Monitor" Height="450" Width="800">
+    <Window.Background>
+        <ImageBrush ImageSource="/659f3ccd-19d6-5627-9a5c-f857b2f5474f.jpg"/>
+    </Window.Background>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Input Fields -->
+        <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0 0 0 10">
+            <Label Content="Вид рыбы:" HorizontalAlignment="Center" Foreground="#FF001BFF" />
+            <TextBox x:Name="ProductNameTextBox" Width="400" />
+
+            <Label Content="Время перевозки (дд.мм.гггг чч:мм):" HorizontalAlignment="Center" Foreground="#FF001BFF" />
+            <TextBox x:Name="TransportTimeTextBox" Width="400" />
+
+            <Label Content="Максимальная температура (°C):" HorizontalAlignment="Center" Foreground="#FF001BFF" />
+            <TextBox x:Name="MaxTempTextBox" Width="400" />
+
+            <Label Content="Минимальная температура (°C):" HorizontalAlignment="Center" Foreground="#FF001BFF" />
+            <TextBox x:Name="MinTempTextBox" Width="400" />
+
+            <Label Content="Замеры температуры (через запятую):" HorizontalAlignment="Center" Foreground="#FF001BFF" />
+            <TextBox x:Name="TemperatureReadingsTextBox" />
+            <StackPanel Orientation="Horizontal" Grid.Row="1" HorizontalAlignment="Center">
+                <Button Content="Проверить условия хранения" Click="CheckConditions_Click" Margin="5">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="5"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Results -->
+        <TextBox x:Name="ResultsTextBox" Grid.Row="2" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+    </Grid>
+</Window>
+
+--Для MainWindow.xaml.cs
+using System.Linq;
+using System;
+using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace ZV
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        public MainWindow()
+        {
+            InitializeComponent();
+        }
+
+        private void CheckConditions_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Get input data
+                string productName = ProductNameTextBox.Text;
+                DateTime startTime = DateTime.Parse(TransportTimeTextBox.Text);
+                int maxTemp = int.Parse(MaxTempTextBox.Text);
+                int minTemp = int.Parse(MinTempTextBox.Text);
+                int[] temperatureReadings = TemperatureReadingsTextBox.Text.Split(',').Select(int.Parse).ToArray();
+
+                // Calculate violations
+                string result = CheckTemperatureConditions(startTime, maxTemp, minTemp, temperatureReadings);
+                ResultsTextBox.Text = $"Результаты проверки для {productName}:\n{result}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private string CheckTemperatureConditions(DateTime startTime, int maxTemp, int minTemp, int[] readings)
+        {
+            int totalMinTime = 0;
+            int totalMaxTime = 0;
+
+            StringBuilder report = new StringBuilder();
+            report.AppendLine("Отчет:\n");
+            report.AppendLine("Время\t\tФакт\tНорма\t              Отклонение от нормы\n");
+
+            for (int i = 0; i < readings.Length; i++)
+            {
+                DateTime currentTime = startTime.AddMinutes(i * 10);
+                int reading = readings[i];
+
+                string deviation = "0";
+                if (reading > maxTemp)
+                {
+                    totalMaxTime += 10;
+                    deviation = $"+{reading - maxTemp}";
+                }
+                if (reading < minTemp)
+                {
+                    totalMinTime += 10;
+                    deviation = $"{reading - minTemp}";
+                }
+
+                report.AppendLine($"{currentTime:dd.MM.yyyy HH:mm}\t{reading}\tMin:{minTemp} Max:{maxTemp}\t{deviation}");
+            }
+
+            report.AppendLine($"\nОбщее время превышения минимальной температуры: {totalMinTime} минут.");
+            report.AppendLine($"Общее время превышения максимальной температуры: {totalMaxTime} минут.");
+
+            return report.ToString();
+        }
+    }
+}
